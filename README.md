@@ -49,6 +49,21 @@ This repository does **not** modify generation defaults unless explicitly reques
    - api docs: `http://localhost:8000/docs`
    - minio console: `http://localhost:9001`
 
+## Colab (ready Gradio link)
+
+If you want Foocus-style Colab flow (run notebook -> receive public Gradio URL):
+
+- open `colab/Identity_Studio_Colab.ipynb` in Colab,
+- run all cells,
+- the last cell runs:
+
+```bash
+python -m colab.launch_colab --share --port 7860
+```
+
+`--share` prints a public Gradio link directly in Colab output.
+See `docs/COLAB.md` for quick instructions and adapter modes.
+
 ## Notes on Foocus Parity
 
 Photo worker forwards payload fields (`prompt`, `negative_prompt`, `model`, `cfg_scale`, `steps`, `seed`, `width`, `height`) without mutating defaults. Adapter modes:

@@ -64,6 +64,11 @@ python -m colab.launch_colab --share --port 7860
 `--share` prints a public Gradio link directly in Colab output.
 See `docs/COLAB.md` for quick instructions and adapter modes.
 
+Colab launcher now includes **Strict Identity (2-stage)**:
+- identity-anchored generation (reference face on input),
+- optional post-process face swap,
+- optional similarity scoring with auto-retries to hit threshold.
+
 ## Notes on Foocus Parity
 
 Photo worker forwards payload fields (`prompt`, `negative_prompt`, `model`, `cfg_scale`, `steps`, `seed`, `width`, `height`) without mutating defaults. Adapter modes:

@@ -47,7 +47,7 @@ def process_job(job_id: str, redis: Redis) -> None:
             # Stub pipeline: reserve contract and metadata while real animation is pending.
             time.sleep(1)
             job.status = JobStatus.completed
-            job.metadata = {
+            job.job_metadata = {
                 "pipeline": "video-stub",
                 "note": "Video pipeline stub executed; replace with animation backend.",
                 "input": job.payload,

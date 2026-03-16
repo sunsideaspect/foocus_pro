@@ -51,7 +51,7 @@ def process_job(job_id: str, redis: Redis) -> None:
             upload_image(object_key, result.image_bytes)
 
             job.status = JobStatus.completed
-            job.metadata = result.metadata
+            job.job_metadata = result.metadata
             job.result_object_key = object_key
             job.error_message = None
             job.updated_at = utcnow()

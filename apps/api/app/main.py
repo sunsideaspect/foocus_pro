@@ -49,7 +49,7 @@ def to_job_response(job: Job) -> JobResponse:
         status=job.status,
         character_id=job.character_id,
         payload=job.payload,
-        metadata=job.metadata,
+        metadata=job.job_metadata,
         error_message=job.error_message,
         attempts=job.attempts,
         result_object_key=job.result_object_key,
@@ -222,7 +222,7 @@ def get_job_result(
     return JobResultResponse(
         id=job.id,
         status=job.status,
-        metadata=job.metadata,
+        metadata=job.job_metadata,
         object_key=job.result_object_key,
         presigned_url=presigned_url,
     )

@@ -35,7 +35,7 @@ class Job(Base):
     character_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True)
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
-    metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    job_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True)
     result_object_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text(), nullable=True)
     attempts: Mapped[int] = mapped_column(Integer, default=0)

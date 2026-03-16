@@ -30,6 +30,62 @@ RUNTIME_HOME = _resolve_runtime_home()
 DB_PATH = RUNTIME_HOME / "identity_studio_colab.db"
 OUTPUT_DIR = RUNTIME_HOME / "identity_studio_outputs"
 
+STYLE_PROMPT_SUFFIXES = {
+    "none": "",
+    "vivid_cinematic": "vivid cinematic color palette, rich tones, high dynamic range, detailed skin texture",
+    "soft_natural": "natural daylight, realistic color science, subtle contrast, authentic skin tones",
+}
+
+QUALITY_PRESETS: dict[str, dict[str, Any]] = {
+    "foocus_parity": {
+        "adapter_mode": "http",
+        "strict_identity_mode": True,
+        "identity_similarity_threshold": 0.72,
+        "max_identity_attempts": 3,
+        "similarity_mode": "none",
+        "similarity_http_url": "http://127.0.0.1:8890/similarity",
+        "postprocess_faceswap_mode": "none",
+        "postprocess_faceswap_passes": 1,
+        "faceswap_http_url": "http://127.0.0.1:8891/swap",
+        "faceswap_cli_command": "python face_swap.py --source {source} --target {target} --output {output}",
+        "style_preset": "none",
+    },
+    "max_identity_quality": {
+        "adapter_mode": "http",
+        "strict_identity_mode": True,
+        "identity_similarity_threshold": 0.80,
+        "max_identity_attempts": 6,
+        "similarity_mode": "http",
+        "similarity_http_url": "http://127.0.0.1:8890/similarity",
+        "postprocess_faceswap_mode": "cli",
+        "postprocess_faceswap_passes": 2,
+        "faceswap_http_url": "http://127.0.0.1:8891/swap",
+        "faceswap_cli_command": (
+            "python /content/roop/run.py --execution-provider cuda "
+            "-s {source} -t {target} -o {output} "
+            "--frame-processor face_swapper face_enhancer --similar-face-distance 0.78"
+        ),
+        "style_preset": "none",
+    },
+    "max_identity_vivid": {
+        "adapter_mode": "http",
+        "strict_identity_mode": True,
+        "identity_similarity_threshold": 0.80,
+        "max_identity_attempts": 6,
+        "similarity_mode": "http",
+        "similarity_http_url": "http://127.0.0.1:8890/similarity",
+        "postprocess_faceswap_mode": "cli",
+        "postprocess_faceswap_passes": 2,
+        "faceswap_http_url": "http://127.0.0.1:8891/swap",
+        "faceswap_cli_command": (
+            "python /content/roop/run.py --execution-provider cuda "
+            "-s {source} -t {target} -o {output} "
+            "--frame-processor face_swapper face_enhancer --similar-face-distance 0.78"
+        ),
+        "style_preset": "vivid_cinematic",
+    },
+}
+
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -73,6 +129,33 @@ def init_storage() -> None:
 
 def parse_references(raw: str) -> list[str]:
     return [line.strip() for line in raw.splitlines() if line.strip()]
+
+
+def apply_style_preset(prompt: str, style_preset: str) -> str:
+    suffix = STYLE_PROMPT_SUFFIXES.get(style_preset, "")
+    clean_prompt = prompt.strip()
+    if not suffix:
+        return clean_prompt
+    return f"{clean_prompt}, {suffix}"
+
+
+def apply_quality_preset(
+    preset_name: str,
+) -> tuple[str, bool, float, int, str, str, str, int, str, str, str]:
+    preset = QUALITY_PRESETS.get(preset_name, QUALITY_PRESETS["foocus_parity"])
+    return (
+        str(preset["adapter_mode"]),
+        bool(preset["strict_identity_mode"]),
+        float(preset["identity_similarity_threshold"]),
+        int(preset["max_identity_attempts"]),
+        str(preset["similarity_mode"]),
+        str(preset["similarity_http_url"]),
+        str(preset["postprocess_faceswap_mode"]),
+        int(preset["postprocess_faceswap_passes"]),
+        str(preset["faceswap_http_url"]),
+        str(preset["faceswap_cli_command"]),
+        str(preset["style_preset"]),
+    )
 
 
 def save_character(name: str, description: str, references_raw: str) -> tuple[str, str]:
@@ -304,11 +387,14 @@ def run_photo_job(
     adapter_mode: str,
     foocus_http_url: str,
     foocus_cli_command: str,
+    quality_preset: str,
+    style_preset: str,
     identity_reference_image: str | None,
     strict_identity_mode: bool,
     identity_similarity_threshold: float,
     max_identity_attempts: int,
     postprocess_faceswap_mode: str,
+    postprocess_faceswap_passes: int,
     faceswap_http_url: str,
     faceswap_cli_command: str,
     similarity_mode: str,
@@ -332,9 +418,11 @@ def run_photo_job(
     else:
         seed_value = int(seed)
 
+    styled_prompt = apply_style_preset(prompt, style_preset)
+
     base_payload = {
         "character_id": character_id,
-        "prompt": prompt.strip(),
+        "prompt": styled_prompt,
         "negative_prompt": negative_prompt.strip(),
         "model": model.strip() or "default",
         "cfg_scale": float(cfg_scale),
@@ -367,13 +455,26 @@ def run_photo_job(
 
         postprocess_meta = {"mode": "none"}
         if postprocess_faceswap_mode.strip().lower() != "none" and reference_path:
-            image_bytes, postprocess_meta = _run_faceswap_postprocess(
-                mode=postprocess_faceswap_mode,
-                source_image_path=reference_path,
-                target_image_bytes=image_bytes,
-                faceswap_http_url=faceswap_http_url,
-                faceswap_cli_command=faceswap_cli_command,
-            )
+            pass_count = max(1, int(postprocess_faceswap_passes))
+            pass_results: list[dict[str, Any]] = []
+            for pass_index in range(pass_count):
+                image_bytes, one_pass_meta = _run_faceswap_postprocess(
+                    mode=postprocess_faceswap_mode,
+                    source_image_path=reference_path,
+                    target_image_bytes=image_bytes,
+                    faceswap_http_url=faceswap_http_url,
+                    faceswap_cli_command=faceswap_cli_command,
+                )
+                pass_results.append(
+                    {
+                        "pass_index": pass_index + 1,
+                        **one_pass_meta,
+                    }
+                )
+            postprocess_meta = {
+                "mode": postprocess_faceswap_mode.strip().lower(),
+                "passes": pass_results,
+            }
 
         similarity_score: float | None = None
         if similarity_mode.strip().lower() == "http" and reference_path:
@@ -433,11 +534,16 @@ def run_photo_job(
     metadata = {
         **chosen_metadata,
         "identity": {
+            "quality_preset": quality_preset,
+            "style_preset": style_preset,
+            "original_prompt": prompt.strip(),
+            "styled_prompt": styled_prompt,
             "strict_mode": bool(strict_identity_mode),
             "threshold": float(identity_similarity_threshold),
             "similarity_mode": similarity_mode.strip().lower(),
             "final_similarity": chosen_similarity,
             "postprocess_faceswap_mode": postprocess_faceswap_mode.strip().lower(),
+            "postprocess_faceswap_passes": int(postprocess_faceswap_passes),
             "attempt_count": len(attempts_info),
             "attempts": attempts_info,
             "reference_image_path": str(reference_path) if reference_path else None,
@@ -514,6 +620,7 @@ def build_demo() -> gr.Blocks:
             # Identity Studio — Colab Launcher
             One notebook run should produce a public Gradio URL (`share=True`) like Foocus workflow.
             Strict Identity mode runs two stages: identity-aware generation + optional face-swap refine.
+            Use `max_identity_quality` preset for strongest identity lock.
             """
         )
 
@@ -536,6 +643,18 @@ def build_demo() -> gr.Blocks:
                 value=None,
             )
             refresh_character_btn = gr.Button("Refresh Character List")
+            with gr.Row():
+                quality_preset = gr.Dropdown(
+                    label="Quality preset",
+                    choices=list(QUALITY_PRESETS.keys()),
+                    value="foocus_parity",
+                )
+                style_preset = gr.Radio(
+                    label="Style preset",
+                    choices=list(STYLE_PROMPT_SUFFIXES.keys()),
+                    value="none",
+                )
+            apply_preset_btn = gr.Button("Apply quality preset")
             prompt = gr.Textbox(
                 label="Prompt",
                 lines=3,
@@ -607,6 +726,13 @@ def build_demo() -> gr.Blocks:
                     value="none",
                     label="Post-process face swap mode",
                 )
+                postprocess_faceswap_passes = gr.Slider(
+                    label="Post-process face swap passes",
+                    minimum=1,
+                    maximum=3,
+                    value=1,
+                    step=1,
+                )
                 faceswap_http_url = gr.Textbox(
                     label="Face swap HTTP URL",
                     value="http://127.0.0.1:8891/swap",
@@ -641,6 +767,24 @@ def build_demo() -> gr.Blocks:
 
         refresh_character_btn.click(fn=refresh_characters, inputs=None, outputs=character_selector)
 
+        apply_preset_btn.click(
+            fn=apply_quality_preset,
+            inputs=[quality_preset],
+            outputs=[
+                adapter_mode,
+                strict_identity_mode,
+                identity_similarity_threshold,
+                max_identity_attempts,
+                similarity_mode,
+                similarity_http_url,
+                postprocess_faceswap_mode,
+                postprocess_faceswap_passes,
+                faceswap_http_url,
+                faceswap_cli_command,
+                style_preset,
+            ],
+        )
+
         run_btn.click(
             fn=run_photo_job,
             inputs=[
@@ -656,11 +800,14 @@ def build_demo() -> gr.Blocks:
                 adapter_mode,
                 foocus_http_url,
                 foocus_cli_command,
+                quality_preset,
+                style_preset,
                 identity_reference_image,
                 strict_identity_mode,
                 identity_similarity_threshold,
                 max_identity_attempts,
                 postprocess_faceswap_mode,
+                postprocess_faceswap_passes,
                 faceswap_http_url,
                 faceswap_cli_command,
                 similarity_mode,

@@ -69,6 +69,11 @@ Colab launcher now includes **Strict Identity (2-stage)**:
 - optional post-process face swap,
 - optional similarity scoring with auto-retries to hit threshold.
 
+For strongest personal-use identity lock:
+- run `bash colab/setup_max_identity.sh /content/foocus_pro`,
+- start scorer: `python -m uvicorn colab.arcface_similarity_server:app --host 0.0.0.0 --port 8890`,
+- in UI choose preset: `max_identity_quality` (or `max_identity_vivid`).
+
 ## Notes on Foocus Parity
 
 Photo worker forwards payload fields (`prompt`, `negative_prompt`, `model`, `cfg_scale`, `steps`, `seed`, `width`, `height`) without mutating defaults. Adapter modes:

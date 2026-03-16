@@ -51,3 +51,25 @@ HTTP contracts (expected):
   - `similarity`
   - `score`
   - `identity_score`
+
+## "Max Identity Quality" quick path
+
+Install optional high-quality backends (roop + ArcFace scorer):
+
+```python
+!bash colab/setup_max_identity.sh /content/foocus_pro
+!nohup python -m uvicorn colab.arcface_similarity_server:app --host 0.0.0.0 --port 8890 >/content/arcface.log 2>&1 &
+```
+
+Then in UI:
+
+1. Choose preset `max_identity_quality` (or `max_identity_vivid`).
+2. Click `Apply quality preset`.
+3. Upload identity reference image.
+4. Keep face swap mode = `cli` and scorer mode = `http`.
+
+Default CLI template for roop in this preset:
+
+```bash
+python /content/roop/run.py --execution-provider cuda -s {source} -t {target} -o {output} --frame-processor face_swapper face_enhancer --similar-face-distance 0.78
+```

@@ -63,6 +63,8 @@ python -m colab.launch_colab --share --port 7860
 
 `--share` prints a public Gradio link directly in Colab output.
 See `docs/COLAB.md` for quick instructions and adapter modes.
+If notebook fails to find `colab/requirements.txt`, re-run with clone from branch
+`cursor/identity-studio-ed79` (the notebook is already configured for this).
 
 Colab launcher now includes **Strict Identity (2-stage)**:
 - identity-anchored generation (reference face on input),

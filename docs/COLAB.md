@@ -9,8 +9,9 @@ Use `colab/Identity_Studio_Colab.ipynb`.
 ## Option B: Manual cells
 
 ```python
-!git clone https://github.com/sunsideaspect/foocus_pro.git
-%cd foocus_pro
+!rm -rf /content/foocus_pro
+!git clone -b cursor/identity-studio-ed79 https://github.com/sunsideaspect/foocus_pro.git /content/foocus_pro
+%cd /content/foocus_pro
 !pip install -r colab/requirements.txt
 !python -m colab.launch_colab --share --port 7860
 ```

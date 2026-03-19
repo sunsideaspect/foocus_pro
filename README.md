@@ -54,6 +54,7 @@ This repository does **not** modify generation defaults unless explicitly reques
 If you want Foocus-style Colab flow (run notebook -> receive public Gradio URL):
 
 - open `colab/Identity_Studio_Colab.ipynb` in Colab,
+- or use `colab/Identity_Studio_Colab_Stable.ipynb` (recommended),
 - run all cells,
 - the last cell runs:
 

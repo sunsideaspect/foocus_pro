@@ -1,7 +1,7 @@
 import argparse
 import os
 
-from colab.app import build_demo
+from colab.app import OUTPUT_DIR, RUNTIME_HOME, build_demo
 
 
 def parse_args() -> argparse.Namespace:
@@ -18,12 +18,25 @@ def main() -> None:
         os.environ["GRADIO_ANALYTICS_ENABLED"] = "False"
 
     demo = build_demo()
-    demo.queue().launch(
-        share=args.share,
-        server_name=server_name,
-        server_port=args.port,
-        show_error=True,
-    )
+    launch_kwargs = {
+        "share": args.share,
+        "server_name": server_name,
+        "server_port": args.port,
+        "show_error": True,
+    }
+
+    # Gradio can block files outside cwd/tmp; allow our runtime output dir.
+    allowed_paths = [str(RUNTIME_HOME), str(OUTPUT_DIR), "/tmp"]
+    try:
+        demo.queue().launch(
+            **launch_kwargs,
+            allowed_paths=allowed_paths,
+        )
+    except TypeError:
+        # Backward compatibility for older Gradio versions without allowed_paths.
+        demo.queue().launch(
+            **launch_kwargs,
+        )
 
 
 if __name__ == "__main__":

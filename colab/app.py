@@ -612,6 +612,23 @@ def refresh_characters() -> gr.Dropdown:
     return gr.Dropdown(choices=get_character_choices())
 
 
+def build_history_table() -> gr.Dataframe:
+    kwargs = {
+        "label": "Generation history",
+        "headers": ["job_id", "prompt", "model", "cfg", "steps", "seed", "created_at", "metadata"],
+        "datatype": ["str", "str", "str", "number", "number", "number", "str", "str"],
+        "row_count": (1, "dynamic"),
+        "interactive": False,
+    }
+    try:
+        return gr.Dataframe(column_count=(8, "fixed"), **kwargs)
+    except TypeError:
+        try:
+            return gr.Dataframe(col_count=(8, "fixed"), **kwargs)
+        except TypeError:
+            return gr.Dataframe(**kwargs)
+
+
 def build_demo() -> gr.Blocks:
     init_storage()
     with gr.Blocks(title="Identity Studio (Colab)") as demo:
@@ -750,14 +767,7 @@ def build_demo() -> gr.Blocks:
         with gr.Tab("Gallery / History"):
             refresh_history_btn = gr.Button("Refresh History")
             gallery = gr.Gallery(label="Gallery", columns=3, height=420)
-            history_table = gr.Dataframe(
-                label="Generation history",
-                headers=["job_id", "prompt", "model", "cfg", "steps", "seed", "created_at", "metadata"],
-                datatype=["str", "str", "str", "number", "number", "number", "str", "str"],
-                row_count=(1, "dynamic"),
-                column_count=(8, "fixed"),
-                interactive=False,
-            )
+            history_table = build_history_table()
 
         create_character_btn.click(
             fn=save_character,

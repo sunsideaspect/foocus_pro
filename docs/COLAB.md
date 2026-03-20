@@ -7,6 +7,7 @@ Goal: run one Colab notebook and get a ready public Gradio URL, similar to Foocu
 Use `colab/Identity_Studio_Colab.ipynb`.
 
 Recommended stable launcher: `colab/Identity_Studio_Colab_Stable.ipynb`.
+Maximum-quality locked launcher: `colab/Identity_Studio_Colab_Ultimate.ipynb`.
 
 ## Option B: Manual cells
 
@@ -81,4 +82,10 @@ python /content/roop/run.py --execution-provider cuda -s {source} -t {target} -o
 
 ```
 https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/cursor/identity-studio-ed79/colab/Identity_Studio_Colab_Stable.ipynb
+```
+
+## Ultimate notebook link
+
+```
+https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/cursor/identity-studio-ed79/colab/Identity_Studio_Colab_Ultimate.ipynb
 ```

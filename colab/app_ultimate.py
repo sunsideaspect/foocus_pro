@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any
 
 import gradio as gr
+import requests
 
 from colab.app import (
     DB_PATH,
@@ -76,6 +77,49 @@ def _ultimate_generate(
         )
         return character_id, status, image, metadata, gallery_items, history_rows
     except Exception as exc:  # noqa: BLE001
+        # If Foocus backend is missing, avoid hard-fail: degrade to local mock generation.
+        message = str(exc)
+        is_foocus_unreachable = (
+            "127.0.0.1" in message and "8888" in message
+        ) or "ConnectionError" in message or "Failed to establish a new connection" in message
+        if is_foocus_unreachable:
+            fallback_status, image, metadata, gallery_items, history_rows = run_photo_job(
+                character_id=character_id,
+                prompt=prompt,
+                negative_prompt=ULTIMATE_NEGATIVE_PROMPT,
+                model="default",
+                cfg_scale=7.0,
+                steps=40,
+                seed=None,
+                width=1024,
+                height=1365,
+                adapter_mode="mock",
+                foocus_http_url="http://127.0.0.1:8888/generate",
+                foocus_cli_command="python entrypoint.py",
+                quality_preset="ultimate_fallback_mock",
+                style_preset="vivid_cinematic",
+                identity_reference_image=identity_reference_image,
+                strict_identity_mode=False,
+                identity_similarity_threshold=0.0,
+                max_identity_attempts=1,
+                postprocess_faceswap_mode="none",
+                postprocess_faceswap_passes=1,
+                faceswap_http_url="http://127.0.0.1:8891/swap",
+                faceswap_cli_command=(
+                    "python /content/roop/run.py --execution-provider cuda "
+                    "-s {source} -t {target} -o {output} "
+                    "--frame-processor face_swapper face_enhancer --similar-face-distance 0.76"
+                ),
+                similarity_mode="none",
+                similarity_http_url="http://127.0.0.1:8890/similarity",
+            )
+            fallback_status = (
+                "[WARN] Foocus backend on :8888 is unavailable. "
+                "Generated via mock fallback. Start real backend for true photoreal quality. "
+                + fallback_status
+            )
+            return character_id, fallback_status, image, metadata, gallery_items, history_rows
+
         raise gr.Error(
             "Ultimate pipeline failed. Ensure these are running: "
             "Foocus HTTP on :8888, ArcFace scorer on :8890, roop backend in /content/roop. "
@@ -85,6 +129,27 @@ def _ultimate_generate(
 
 def _refresh_history_only() -> tuple[list[tuple[str, str]], list[list[Any]]]:
     return load_history()
+
+
+def _check_backends() -> str:
+    checks: list[str] = []
+
+    try:
+        response = requests.get("http://127.0.0.1:8888/health", timeout=2)
+        checks.append(f"Foocus :8888 /health -> {response.status_code}")
+    except Exception as exc:  # noqa: BLE001
+        checks.append(f"Foocus :8888 unreachable ({exc})")
+
+    try:
+        response = requests.get("http://127.0.0.1:8890/health", timeout=2)
+        checks.append(f"ArcFace :8890 /health -> {response.status_code}")
+    except Exception as exc:  # noqa: BLE001
+        checks.append(f"ArcFace :8890 unreachable ({exc})")
+
+    roop_path = Path("/content/roop/run.py")
+    checks.append(f"roop backend -> {'ok' if roop_path.exists() else 'missing'} ({roop_path})")
+
+    return "\n".join(checks)
 
 
 def _load_existing_character() -> tuple[str, str]:
@@ -116,7 +181,10 @@ def build_demo() -> gr.Blocks:
         with gr.Row():
             character_name = gr.Textbox(label="Character name", value="Daniela")
             load_last_btn = gr.Button("Load last character")
+            check_backends_btn = gr.Button("Check Backends")
             loaded_character_id = gr.Textbox(label="Character ID", interactive=False)
+
+        backend_status = gr.Textbox(label="Backend status", lines=3, interactive=False)
 
         identity_reference_image = gr.Image(
             label="Identity reference face (required)",
@@ -151,6 +219,12 @@ def build_demo() -> gr.Blocks:
             fn=lambda cid, _: cid,
             inputs=[character_id_state, character_name],
             outputs=[loaded_character_id],
+        )
+
+        check_backends_btn.click(
+            fn=_check_backends,
+            inputs=None,
+            outputs=[backend_status],
         )
 
         generate_btn.click(

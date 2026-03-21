@@ -1,17 +1,24 @@
+import json
 import sqlite3
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import gradio as gr
 import requests
+from PIL import Image
 
 from colab.app import (
     DB_PATH,
+    OUTPUT_DIR,
+    _compute_similarity_http,
+    _run_faceswap_postprocess,
     build_history_table,
     init_storage,
     load_history,
     run_photo_job,
     save_character,
+    utcnow,
 )
 
 ULTIMATE_NEGATIVE_PROMPT = (
@@ -34,6 +41,7 @@ def _ultimate_generate(
     character_name: str,
     existing_character_id: str | None,
     identity_reference_image: str | None,
+    base_generated_image: str | None,
     prompt: str,
 ) -> tuple[str, str, Any, str, list[tuple[str, str]], list[list[Any]]]:
     if not prompt.strip():
@@ -44,6 +52,91 @@ def _ultimate_generate(
         raise gr.Error(f"Identity reference image does not exist: {identity_reference_image}")
 
     character_id = _get_or_create_character(character_name, existing_character_id)
+
+    # Preferred path: user generates base image in Foocus UI, then uploads here for identity lock.
+    if base_generated_image:
+        source_path = Path(identity_reference_image)
+        target_path = Path(base_generated_image)
+        if not target_path.exists():
+            raise gr.Error(f"Base generated image does not exist: {target_path}")
+
+        current_bytes = target_path.read_bytes()
+        pass_meta: list[dict[str, Any]] = []
+        for pass_index in range(3):
+            current_bytes, meta = _run_faceswap_postprocess(
+                mode="cli",
+                source_image_path=source_path,
+                target_image_bytes=current_bytes,
+                faceswap_http_url="http://127.0.0.1:8891/swap",
+                faceswap_cli_command=(
+                    "python /content/roop/run.py --execution-provider cuda "
+                    "-s {source} -t {target} -o {output} "
+                    "--frame-processor face_swapper face_enhancer --similar-face-distance 0.76"
+                ),
+            )
+            pass_meta.append({"pass_index": pass_index + 1, **meta})
+
+        similarity_score: float | None = None
+        try:
+            similarity_score = _compute_similarity_http(
+                source_image_path=source_path,
+                target_image_bytes=current_bytes,
+                similarity_http_url="http://127.0.0.1:8890/similarity",
+            )
+        except Exception:  # noqa: BLE001
+            similarity_score = None
+
+        job_id = f"ultimate-refine-{uuid4()}"
+        image_path = OUTPUT_DIR / f"{job_id}.png"
+        image_path.write_bytes(current_bytes)
+
+        metadata = {
+            "mode": "external_foocus_refine",
+            "prompt": prompt.strip(),
+            "base_generated_image": str(target_path),
+            "identity_reference_image": str(source_path),
+            "faceswap_passes": pass_meta,
+            "similarity_score": similarity_score,
+            "pipeline": "foocus_new_generation + ultimate_identity_refine",
+        }
+
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute(
+                """
+                INSERT INTO jobs (
+                    id, character_id, status, prompt, negative_prompt, model, cfg_scale, steps, seed,
+                    width, height, metadata_json, image_path, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    job_id,
+                    character_id,
+                    "completed",
+                    prompt.strip(),
+                    ULTIMATE_NEGATIVE_PROMPT,
+                    "foocus_new_external",
+                    7.0,
+                    40,
+                    0,
+                    0,
+                    0,
+                    json.dumps(metadata),
+                    str(image_path),
+                    utcnow(),
+                ),
+            )
+
+        with Image.open(image_path) as opened:
+            image = opened.copy()
+        gallery_items, history_rows = load_history()
+        score_txt = "n/a" if similarity_score is None else f"{similarity_score:.4f}"
+        status = (
+            f"Ultimate refine completed (external base image). "
+            f"Face-swap passes=3 | similarity={score_txt}"
+        )
+        return character_id, status, image, json.dumps(metadata, indent=2), gallery_items, history_rows
+
     try:
         status, image, metadata, gallery_items, history_rows = run_photo_job(
             character_id=character_id,
@@ -141,6 +234,12 @@ def _check_backends() -> str:
         checks.append(f"Foocus :8888 unreachable ({exc})")
 
     try:
+        response = requests.get("http://127.0.0.1:7865/", timeout=2)
+        checks.append(f"Foocus UI :7865 -> {response.status_code}")
+    except Exception as exc:  # noqa: BLE001
+        checks.append(f"Foocus UI :7865 unreachable ({exc})")
+
+    try:
         response = requests.get("http://127.0.0.1:8890/health", timeout=2)
         checks.append(f"ArcFace :8890 /health -> {response.status_code}")
     except Exception as exc:  # noqa: BLE001
@@ -172,7 +271,7 @@ def build_demo() -> gr.Blocks:
             - ArcFace similarity threshold
             - 3x post-process face swap pass
 
-            Fill only **character name**, **reference face**, and **prompt**.
+            Best flow: generate base image in Foocus UI (:7865), then upload it here for identity lock.
             """
         )
 
@@ -188,6 +287,10 @@ def build_demo() -> gr.Blocks:
 
         identity_reference_image = gr.Image(
             label="Identity reference face (required)",
+            type="filepath",
+        )
+        base_generated_image = gr.Image(
+            label="Base generated image from Foocus UI (recommended)",
             type="filepath",
         )
         prompt = gr.Textbox(
@@ -229,7 +332,7 @@ def build_demo() -> gr.Blocks:
 
         generate_btn.click(
             fn=_ultimate_generate,
-            inputs=[character_name, character_id_state, identity_reference_image, prompt],
+            inputs=[character_name, character_id_state, identity_reference_image, base_generated_image, prompt],
             outputs=[character_id_state, job_status, result_image, metadata_json, gallery, history_table],
         ).then(
             fn=lambda cid: cid,

@@ -95,3 +95,13 @@ Fresh (cache-bypass) ultimate notebook:
 ```
 https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/cursor/identity-studio-ed79/colab/Identity_Studio_Colab_Ultimate_Fresh.ipynb
 ```
+
+All-in-one notebook (recommended now):
+
+```
+https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/cursor/identity-studio-ed79/colab/Identity_Studio_Colab_AllInOne_Fooocus.ipynb
+```
+
+This mode launches:
+- Fooocus New UI on Colab proxy (quality generation),
+- Identity Studio ULTIMATE UI on a second Colab proxy (identity lock refine on uploaded base image).

@@ -57,6 +57,7 @@ If you want Foocus-style Colab flow (run notebook -> receive public Gradio URL):
 - or use `colab/Identity_Studio_Colab_Stable.ipynb` (recommended),
 - or use `colab/Identity_Studio_Colab_Ultimate.ipynb` (max-quality locked mode),
 - or use `colab/Identity_Studio_Colab_Ultimate_Fresh.ipynb` (cache-bypass fresh copy),
+- or use `colab/Identity_Studio_Colab_AllInOne_Fooocus.ipynb` (Fooocus + Identity refine together),
 - run all cells,
 - the last cell runs:
 

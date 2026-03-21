@@ -27,7 +27,7 @@ echo "[1/5] Upgrading pip tooling..."
 run_required python -m pip install --upgrade pip setuptools wheel
 
 echo "[2/5] Installing quality backend dependencies..."
-run_required python -m pip install -r "${ROOT_DIR}/colab/requirements_quality.txt"
+run_optional python -m pip install -r "${ROOT_DIR}/colab/requirements_quality.txt"
 install_onnxruntime_gpu || echo "WARN: could not install ONNX Runtime GPU; CPU fallback may be used."
 
 echo "[3/5] Preparing patched roop backend..."
@@ -39,17 +39,17 @@ run_required cp -r /content/roop_colab/roop /content/roop
 
 echo "[4/5] Installing roop runtime dependencies..."
 run_optional python -m pip install -r /content/roop/requirements.txt
-run_required python -m pip install numpy pillow opencv-python-headless insightface psutil tqdm onnx gfpgan
+run_optional python -m pip install numpy pillow opencv-python-headless insightface psutil tqdm onnx gfpgan
 install_onnxruntime_gpu || echo "WARN: ONNX Runtime GPU install failed after roop deps."
 
 echo "[5/5] Downloading roop models..."
 run_required mkdir -p /content/roop/models
 if [ ! -f /content/roop/models/inswapper_128.onnx ]; then
-  run_required wget -q -O /content/roop/models/inswapper_128.onnx \
+  run_optional wget -q -O /content/roop/models/inswapper_128.onnx \
     https://github.com/dream80/roop_colab/releases/download/v0.0.1/inswapper_128.onnx
 fi
 if [ ! -f /content/roop/models/GFPGANv1.4.pth ]; then
-  run_required wget -q -O /content/roop/models/GFPGANv1.4.pth \
+  run_optional wget -q -O /content/roop/models/GFPGANv1.4.pth \
     https://github.com/TencentARC/GFPGAN/releases/download/v1.3.4/GFPGANv1.4.pth
 fi
 

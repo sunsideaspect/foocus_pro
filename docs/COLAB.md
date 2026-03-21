@@ -89,3 +89,9 @@ https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/cursor/id
 ```
 https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/cursor/identity-studio-ed79/colab/Identity_Studio_Colab_Ultimate.ipynb
 ```
+
+Fresh (cache-bypass) ultimate notebook:
+
+```
+https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/cursor/identity-studio-ed79/colab/Identity_Studio_Colab_Ultimate_Fresh.ipynb
+```

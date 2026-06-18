@@ -1,13 +1,13 @@
-# Identity Studio (MVP v1)
+# Identity Studio + Fooocus Pro
 
-Identity Studio is a new product repository focused on:
+[![Open In Colab — All-in-One](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/sunsideaspect/foocus_pro/blob/main/colab/Identity_Studio_Colab_AllInOne_Fooocus.ipynb)
 
-- web UI + API + workers + queue orchestration,
-- photorealistic generation with stable face identity,
-- compatibility with `foocus_new` behavior via adapter modes.
+**Рекомендований Colab:** `colab/Identity_Studio_Colab_AllInOne_Fooocus.ipynb`  
+Два UI в одному runtime: **Fooocus New** (генерація) + **Identity Studio ULTIMATE** (face lock).
 
-`foocus_new` remains an external inference engine and behavior reference.
-This repository does **not** modify generation defaults unless explicitly requested.
+Інші ноутбуки: `colab/Identity_Studio_Colab_Stable.ipynb`, `colab/Identity_Studio_Colab_Ultimate_Fresh.ipynb`
+
+Движок генерації: [foocus_new](https://github.com/sunsideaspect/foocus_new) (гілка `main`).
 
 ## Monorepo Structure
 

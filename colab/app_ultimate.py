@@ -160,25 +160,25 @@ def _check_backends() -> str:
     checks: list[str] = []
 
     try:
-        response = requests.get("http://127.0.0.1:8888/health", timeout=2)
-        checks.append(f"Foocus :8888 /health -> {response.status_code}")
-    except Exception as exc:  # noqa: BLE001
-        checks.append(f"Foocus :8888 unreachable ({exc})")
-
-    try:
         response = requests.get("http://127.0.0.1:7865/", timeout=2)
-        checks.append(f"Foocus UI :7865 -> {response.status_code}")
+        checks.append(f"✅ Fooocus UI :7865 -> {response.status_code} (генеруй тут)")
     except Exception as exc:  # noqa: BLE001
-        checks.append(f"Foocus UI :7865 unreachable ({exc})")
+        checks.append(f"❌ Fooocus UI :7865 unreachable ({exc}) — перезапусти Colab комірку 2")
 
     try:
         response = requests.get("http://127.0.0.1:8890/health", timeout=2)
-        checks.append(f"ArcFace :8890 /health -> {response.status_code}")
+        checks.append(f"✅ ArcFace :8890 /health -> {response.status_code}")
     except Exception as exc:  # noqa: BLE001
-        checks.append(f"ArcFace :8890 unreachable ({exc})")
+        checks.append(f"❌ ArcFace :8890 unreachable ({exc}) — перезапусти Colab комірку 3")
 
     roop_path = Path("/content/roop/run.py")
-    checks.append(f"roop backend -> {'ok' if roop_path.exists() else 'missing'} ({roop_path})")
+    if roop_path.exists():
+        checks.append(f"✅ roop backend -> ok ({roop_path})")
+    else:
+        checks.append(f"❌ roop missing — перезапусти Colab комірку 3")
+
+    # All-in-One Colab uses Fooocus Gradio on :7865, not HTTP API on :8888.
+    checks.append("ℹ️ Fooocus :8888 — не використовується в All-in-One (це нормально)")
 
     return "\n".join(checks)
 

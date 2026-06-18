@@ -55,6 +55,13 @@ def _ultimate_generate(
 
     # Preferred path: user generates base image in Foocus UI, then uploads here for identity lock.
     if base_generated_image:
+        roop_path = Path("/content/roop/run.py")
+        if not roop_path.exists():
+            raise gr.Error(
+                "roop не встановлено. У Colab перезапусти комірку 3 (setup_max_identity.sh), "
+                "потім перезапусти комірку 4 (Identity Studio)."
+            )
+
         source_path = Path(identity_reference_image)
         target_path = Path(base_generated_image)
         if not target_path.exists():
@@ -137,87 +144,12 @@ def _ultimate_generate(
         )
         return character_id, status, image, json.dumps(metadata, indent=2), gallery_items, history_rows
 
-    try:
-        status, image, metadata, gallery_items, history_rows = run_photo_job(
-            character_id=character_id,
-            prompt=prompt,
-            negative_prompt=ULTIMATE_NEGATIVE_PROMPT,
-            model="default",
-            cfg_scale=7.0,
-            steps=40,
-            seed=None,
-            width=1024,
-            height=1365,
-            adapter_mode="http",
-            foocus_http_url="http://127.0.0.1:8888/generate",
-            foocus_cli_command="python entrypoint.py",
-            quality_preset="ultimate_locked",
-            style_preset="vivid_cinematic",
-            identity_reference_image=identity_reference_image,
-            strict_identity_mode=True,
-            identity_similarity_threshold=0.82,
-            max_identity_attempts=10,
-            postprocess_faceswap_mode="cli",
-            postprocess_faceswap_passes=3,
-            faceswap_http_url="http://127.0.0.1:8891/swap",
-            faceswap_cli_command=(
-                "python /content/roop/run.py --execution-provider cuda "
-                "-s {source} -t {target} -o {output} "
-                "--frame-processor face_swapper face_enhancer --similar-face-distance 0.76"
-            ),
-            similarity_mode="http",
-            similarity_http_url="http://127.0.0.1:8890/similarity",
-        )
-        return character_id, status, image, metadata, gallery_items, history_rows
-    except Exception as exc:  # noqa: BLE001
-        # If Foocus backend is missing, avoid hard-fail: degrade to local mock generation.
-        message = str(exc)
-        is_foocus_unreachable = (
-            "127.0.0.1" in message and "8888" in message
-        ) or "ConnectionError" in message or "Failed to establish a new connection" in message
-        if is_foocus_unreachable:
-            fallback_status, image, metadata, gallery_items, history_rows = run_photo_job(
-                character_id=character_id,
-                prompt=prompt,
-                negative_prompt=ULTIMATE_NEGATIVE_PROMPT,
-                model="default",
-                cfg_scale=7.0,
-                steps=40,
-                seed=None,
-                width=1024,
-                height=1365,
-                adapter_mode="mock",
-                foocus_http_url="http://127.0.0.1:8888/generate",
-                foocus_cli_command="python entrypoint.py",
-                quality_preset="ultimate_fallback_mock",
-                style_preset="vivid_cinematic",
-                identity_reference_image=identity_reference_image,
-                strict_identity_mode=False,
-                identity_similarity_threshold=0.0,
-                max_identity_attempts=1,
-                postprocess_faceswap_mode="none",
-                postprocess_faceswap_passes=1,
-                faceswap_http_url="http://127.0.0.1:8891/swap",
-                faceswap_cli_command=(
-                    "python /content/roop/run.py --execution-provider cuda "
-                    "-s {source} -t {target} -o {output} "
-                    "--frame-processor face_swapper face_enhancer --similar-face-distance 0.76"
-                ),
-                similarity_mode="none",
-                similarity_http_url="http://127.0.0.1:8890/similarity",
-            )
-            fallback_status = (
-                "[WARN] Foocus backend on :8888 is unavailable. "
-                "Generated via mock fallback. Start real backend for true photoreal quality. "
-                + fallback_status
-            )
-            return character_id, fallback_status, image, metadata, gallery_items, history_rows
-
-        raise gr.Error(
-            "Ultimate pipeline failed. Ensure these are running: "
-            "Foocus HTTP on :8888, ArcFace scorer on :8890, roop backend in /content/roop. "
-            f"Details: {exc}"
-        ) from exc
+    raise gr.Error(
+        "Спочатку згенеруй картинку в Fooocus UI (перший лінк, порт 7865), "
+        "завантаж її в поле «Base generated image from Fooocus», "
+        "потім натисни Generate ULTIMATE Photo. "
+        "Identity Studio сам по собі не генерує фото — тільки підміняє обличчя."
+    )
 
 
 def _refresh_history_only() -> tuple[list[tuple[str, str]], list[list[Any]]]:
@@ -271,7 +203,12 @@ def build_demo() -> gr.Blocks:
             - ArcFace similarity threshold
             - 3x post-process face swap pass
 
-            Best flow: generate base image in Foocus UI (:7865), then upload it here for identity lock.
+            Best flow (All-in-One Colab):
+            1. Open **Fooocus** link (port 7865) → generate → download/save image.
+            2. Here upload **identity face** + **base image from Fooocus**.
+            3. Click **Generate ULTIMATE Photo** (face swap only).
+
+            ⚠️ Do NOT click Generate with only a reference face — you will get an error (no mock).
             """
         )
 

@@ -5,6 +5,6 @@
 Use the main Fooocus fork instead:
 
 - **Repo:** [sunsideaspect/foocus_new](https://github.com/sunsideaspect/foocus_new)
-- **Colab:** [fooocus_colab_easy.ipynb](https://colab.research.google.com/github/sunsideaspect/foocus_new/blob/main/fooocus_colab_easy.ipynb)
+- **Colab:** [fooocus_colab.ipynb](https://colab.research.google.com/github/sunsideaspect/foocus_new/blob/main/fooocus_colab.ipynb)
 
 This repository is kept for history only. The `apps/` and `workers/` folders are legacy MVP code and are not maintained.

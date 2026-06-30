@@ -1,4 +1,0 @@
-gradio
-Pillow
-requests
-jinja2>=3.1.5
